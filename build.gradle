@@ -4,20 +4,32 @@ buildscript {
         mavenCentral()
     }
     dependencies {
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21'
         classpath 'com.android.tools.build:gradle:8.5.2'
     }
 }
 
 repositories {
     google()
+    mavenCentral()
 }
 
+apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'com.android.application'
 
 android {
     namespace "net.snlx.mindroid"
 
     compileSdkVersion 34
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 
     defaultConfig {
         targetSdk 34

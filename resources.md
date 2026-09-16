@@ -1,0 +1,2 @@
+- https://czak.pl/posts/minimal-android-project
+- https://github.com/ra1nyxin/android-minimal-build-template
