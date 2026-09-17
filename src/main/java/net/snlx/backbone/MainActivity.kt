@@ -9,6 +9,11 @@ import android.webkit.WebSettings
 import android.webkit.WebViewClient
 import android.webkit.JavascriptInterface
 import android.content.Context
+import java.net.Socket
+import java.net.ServerSocket
+import java.io.PrintWriter
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 val DEFAULT_URL = "http://192.168.50.174:8899"
 
@@ -26,6 +31,19 @@ class MainActivity : Activity() {
         val pref = this.getPreferences(Context.MODE_PRIVATE) ?: return
         val url = pref.getString("url", DEFAULT_URL).toString()
         webview.loadUrl(url)
+
+        Thread(Runnable {
+            val socket = ServerSocket(3000)
+            while (true) {
+                val client = socket.accept() ?: continue;
+                val output = PrintWriter(client.getOutputStream(), true)
+                val input = BufferedReader(InputStreamReader(client.getInputStream()))
+                output.write("Hello from server")
+                output.write(input.readLine().orEmpty())
+                output.flush()
+                // output.close()
+            }
+        }).start()
     }
 }
 

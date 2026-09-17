@@ -1,2 +1,5 @@
 - https://czak.pl/posts/minimal-android-project
 - https://github.com/ra1nyxin/android-minimal-build-template
+- https://codezup.com/custom-android-launchers-guide
+- https://codingtechroom.com/question/android-tcp-server-client-communication
+- https://www.geeksforgeeks.org/android/multithreading-in-android-with-examples
