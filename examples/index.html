@@ -16,16 +16,19 @@
 
       <input type="url" placeholder="url" id="url">
 
-      <input type="sh" placholder="termux sh" id="sh" value="python3 -m http.serve">
+      <input type="sh" placholder="termux sh" id="sh">
+
+      <button id="reload">Reload</button>
     </main>
 
     <script>
-      url.onchange = () => backbone.replaceApp(urlInput.value)
+      url.onchange = () => backbone.replaceApp(url.value)
       sh.onchange = () => {
         fetch("http://127.0.0.1:2077/sh", { method: "POST", body: sh.value })
-        backbone.showToast("sent: " + sh.value)
-        sh.value = ""
+          .then((res) => backbone.showToast("termux: " + res.statusText))
+          .catch(() => backbone.showToast("Failed to fetch"))
       }
+      reload.onclick = () => fetch("http://127.0.0.1:2077/reload")
     </script>
   </body>
 </html>

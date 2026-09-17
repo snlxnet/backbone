@@ -76,8 +76,6 @@ class MainActivity : Activity() {
             input.read(bodyBuf)
             val body = String(bodyBuf)
 
-            output.write("HTTP/1.1 200 OK\r\n\r\n")
-
             if (!body.isEmpty() && path == "/sh") {
                 intent = Intent()
                 intent.setClassName("com.termux", "com.termux.app.RunCommandService");
@@ -87,19 +85,23 @@ class MainActivity : Activity() {
                 intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
                 try {
                     startService(intent)
+                    output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
                     output.write("Started in the background")
                 } catch (_: SecurityException) {
-                    output.write("Permission denied by the OS")
+                    output.write("HTTP/1.1 403 Forbidden\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+                    output.write("Forbidden by the OS")
                 }
 
                 output.flush()
             } else if (path == "/reload") {
+                output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
                 output.write("Reloading")
                 runOnUiThread {
                     webview.reload()
                 }
             } else {
-                output.write("Not sh, " + path)
+                output.write("HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
+                output.write("Command not found" + path)
             }
         })
     }
