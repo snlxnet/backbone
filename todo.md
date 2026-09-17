@@ -1,5 +1,6 @@
 - [x] make it run at all
 - [x] loose the top bar
 - [x] put a webview into it
-- [ ] add js to webview api
-- [ ] make a build system that will accept `app.kt` as an input and handle the rest
+- [x] merge with backbone
+- [/] add js to webview api
+
