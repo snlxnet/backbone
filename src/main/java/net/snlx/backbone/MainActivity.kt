@@ -34,18 +34,7 @@ class MainActivity : Activity() {
         val url = pref.getString("url", DEFAULT_URL).toString()
         webview.loadUrl(url)
 
-        serve(3000, {input, output ->
-            val path = input.readLine().split(" ")[1]
-
-            val req = generateSequence { input.readLine() }
-                .takeWhile { it.isNotEmpty() }
-                .joinToString(separator = "\n")
-
-            output.write("HTTP/1.1 200 OK\r\n\r\n")
-            output.write("Path: " + path + "\n")
-            output.write(req)
-        })
-
+        startApi()
         serve(17500, {input, output ->
             val path = input.readLine().split(" ")[1]
 
@@ -65,6 +54,28 @@ class MainActivity : Activity() {
                 output.close()
             }
         }).start()
+    }
+
+    fun startApi() {
+        serve(2077, {input, output ->
+            val path = input.readLine().split(" ")[1]
+
+            val headers = generateSequence { input.readLine() }
+                .takeWhile { it.isNotEmpty() }
+                .toList()
+            val contentLength = headers
+                .firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
+                ?.substringAfter(":")
+                ?.trim()
+                ?.toIntOrNull() ?: 0
+
+            val bodyBuf = CharArray(contentLength)
+            input.read(bodyBuf)
+            val body = String(bodyBuf)
+
+            output.write("HTTP/1.1 200 OK\r\n\r\n")
+            output.write(body)
+        })
     }
 }
 

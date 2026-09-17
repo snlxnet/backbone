@@ -6,4 +6,5 @@
 - [x] autostart: launcher
 - [ ] builtin api server
 - [ ] termux interop
+- [ ] camera support
 
