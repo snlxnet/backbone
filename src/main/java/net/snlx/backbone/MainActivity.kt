@@ -34,20 +34,34 @@ class MainActivity : Activity() {
         val url = pref.getString("url", DEFAULT_URL).toString()
         webview.loadUrl(url)
 
+        serve(3000, {input, output ->
+            val path = input.readLine().split(" ")[1]
+
+            val req = generateSequence { input.readLine() }
+                .takeWhile { it.isNotEmpty() }
+                .joinToString(separator = "\n")
+
+            output.write("HTTP/1.1 200 OK\r\n\r\n")
+            output.write("Path: " + path + "\n")
+            output.write(req)
+        })
+
+        serve(17500, {input, output ->
+            val path = input.readLine().split(" ")[1]
+
+            output.write("HTTP/1.1 200 OK\r\n\r\n")
+            output.write("Path: " + path + "\n")
+        })
+    }
+
+    fun serve(port: Int, handler: (input: BufferedReader, output: PrintWriter) -> Unit) {
         Thread(Runnable {
-            val socket = ServerSocket(3000)
+            val socket = ServerSocket(port)
             while (true) {
                 val client = socket.accept()
                 val output = PrintWriter(client.getOutputStream(), true)
                 val input = BufferedReader(InputStreamReader(client.getInputStream()))
-
-                val req = generateSequence { input.readLine() }
-                    .takeWhile { it.isNotEmpty() }
-                    .joinToString(separator = "\n")
-
-                output.write("HTTP/1.1 200 OK\r\n\r\n")
-                output.write(req)
-                output.flush()
+                handler(input, output)
                 output.close()
             }
         }).start()
