@@ -14,6 +14,8 @@ import java.net.ServerSocket
 import java.io.PrintWriter
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.Vector
+import kotlin.sequences.takeWhile
 
 val DEFAULT_URL = "http://192.168.50.174:8899"
 
@@ -35,13 +37,18 @@ class MainActivity : Activity() {
         Thread(Runnable {
             val socket = ServerSocket(3000)
             while (true) {
-                val client = socket.accept() ?: continue;
+                val client = socket.accept()
                 val output = PrintWriter(client.getOutputStream(), true)
                 val input = BufferedReader(InputStreamReader(client.getInputStream()))
-                output.write("Hello from server")
-                output.write(input.readLine().orEmpty())
+
+                val req = generateSequence { input.readLine() }
+                    .takeWhile { it.isNotEmpty() }
+                    .joinToString(separator = "\n")
+
+                output.write("HTTP/1.1 200 OK\r\n\r\n")
+                output.write(req)
                 output.flush()
-                // output.close()
+                output.close()
             }
         }).start()
     }
