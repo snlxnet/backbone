@@ -1,4 +1,5 @@
 - [x] make it run at all
 - [x] loose the top bar
-- [ ] put a webview into it
+- [x] put a webview into it
+- [ ] add js to webview api
 - [ ] make a build system that will accept `app.kt` as an input and handle the rest

@@ -27,6 +27,7 @@
         androidSdk
         pkgs.jdk17
         pkgs.gradle
+        pkgs.kotlin-language-server
       ];
 
       shellHook = ''
