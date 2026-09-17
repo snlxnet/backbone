@@ -4,7 +4,7 @@
 - [x] merge with backbone
 - [x] add settings: url
 - [x] autostart: launcher
-- [ ] builtin api server
-- [ ] termux interop
+- [/] builtin api server
+- [x] termux interop
 - [ ] camera support
 

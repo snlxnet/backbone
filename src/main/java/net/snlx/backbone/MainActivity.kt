@@ -9,6 +9,7 @@ import android.webkit.WebSettings
 import android.webkit.WebViewClient
 import android.webkit.JavascriptInterface
 import android.content.Context
+import android.content.Intent
 import java.net.Socket
 import java.net.ServerSocket
 import java.io.PrintWriter
@@ -20,10 +21,12 @@ import kotlin.sequences.takeWhile
 val DEFAULT_URL = "http://192.168.50.174:8899"
 
 class MainActivity : Activity() {
+    private lateinit var webview: WebView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        val webview = WebView(this)
+        webview = WebView(this)
         setContentView(webview)
         webview.settings.userAgentString = "backbone"
         webview.settings.cacheMode = WebSettings.LOAD_NO_CACHE
@@ -58,7 +61,7 @@ class MainActivity : Activity() {
 
     fun startApi() {
         serve(2077, {input, output ->
-            val path = input.readLine().split(" ")[1]
+            val path = input.readLine().split(" ")[1].trim()
 
             val headers = generateSequence { input.readLine() }
                 .takeWhile { it.isNotEmpty() }
@@ -74,7 +77,30 @@ class MainActivity : Activity() {
             val body = String(bodyBuf)
 
             output.write("HTTP/1.1 200 OK\r\n\r\n")
-            output.write(body)
+
+            if (!body.isEmpty() && path == "/sh") {
+                intent = Intent()
+                intent.setClassName("com.termux", "com.termux.app.RunCommandService");
+                intent.setAction("com.termux.RUN_COMMAND");
+                intent.putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash");
+                intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", body));
+                intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
+                try {
+                    startService(intent)
+                    output.write("Started in the background")
+                } catch (_: SecurityException) {
+                    output.write("Permission denied by the OS")
+                }
+
+                output.flush()
+            } else if (path == "/reload") {
+                output.write("Reloading")
+                runOnUiThread {
+                    webview.reload()
+                }
+            } else {
+                output.write("Not sh, " + path)
+            }
         })
     }
 }

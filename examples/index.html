@@ -12,16 +12,19 @@
   </head>
   <body>
     <main class="container">
-      <h1>Backbone upd</h1>
+      <h1>Backbone</h1>
 
       <input type="url" placeholder="url" id="url">
+
+      <input type="sh" placholder="termux sh" id="sh" value="python3 -m http.serve">
     </main>
 
     <script>
-      const urlInput = document.getElementById("url")
-
-      urlInput.onchange = () => {
-        backbone.replaceApp(urlInput.value)
+      url.onchange = () => backbone.replaceApp(urlInput.value)
+      sh.onchange = () => {
+        fetch("http://127.0.0.1:2077/sh", { method: "POST", body: sh.value })
+        backbone.showToast("sent: " + sh.value)
+        sh.value = ""
       }
     </script>
   </body>
