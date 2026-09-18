@@ -10,23 +10,15 @@ import android.webkit.WebViewClient
 import android.webkit.JavascriptInterface
 import android.content.Context
 import android.content.Intent
-import android.net.wifi.WifiManager
-import android.net.ConnectivityManager
 import java.net.Socket
 import java.net.ServerSocket
-import java.net.DatagramSocket
-import java.net.DatagramPacket
-import java.net.InetAddress
 import java.io.PrintWriter
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.Vector
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.sequences.takeWhile
 
 val DEFAULT_URL = "http://192.168.50.174:8899"
-val BROADCAST_PORT = 2903
 
 class MainActivity : Activity() {
     private lateinit var webview: WebView
@@ -46,10 +38,11 @@ class MainActivity : Activity() {
         webview.loadUrl(url)
 
         startApi()
-        listenToBroadcast(BROADCAST_PORT, {message ->
-            runOnUiThread({
-                Toast.makeText(this, "sock:"+message, Toast.LENGTH_SHORT).show()
-            })
+        serve(17500, {input, output ->
+            val path = input.readLine().split(" ")[1]
+
+            output.write("HTTP/1.1 200 OK\r\n\r\n")
+            output.write("Path: " + path + "\n")
         })
     }
 
@@ -64,19 +57,6 @@ class MainActivity : Activity() {
                 output.close()
             }
         }).start()
-    }
-
-    fun listenToBroadcast(port: Int, handler: (message: String) -> Unit) {
-        val socket = DatagramSocket(port)
-        Thread {
-            val buf = ByteArray(2048)
-            while (true) {
-                val packet = DatagramPacket(buf, buf.size)
-                socket.receive(packet)
-                val message = String(packet.data, 0, packet.length, Charsets.UTF_8)
-                handler(message)
-            }
-        }.start()
     }
 
     fun startApi() {
@@ -119,33 +99,12 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     webview.reload()
                 }
-            } else if (path == "/broadcast") {
-                output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-
-                val socket = DatagramSocket()
-                socket.broadcast = true
-                val data = "backbone: hi".toByteArray()
-                socket.send(DatagramPacket(data, data.size, broadcastAddress(this), BROADCAST_PORT))
-                socket.close()
             } else {
                 output.write("HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
                 output.write("Command not found" + path)
             }
         })
     }
-}
-
-// LLM slop that I don't understand. Yet. I'll remove the comment when I do :)
-fun broadcastAddress(context: Context): InetAddress {
-    val cm = context.getSystemService(ConnectivityManager::class.java)
-    val lp = cm.getLinkProperties(cm.activeNetwork) ?: error("No network")
-
-    val la = lp.linkAddresses.first { it.address is java.net.Inet4Address }
-    val ip = ByteBuffer.wrap(la.address.address).order(ByteOrder.BIG_ENDIAN).int
-    val mask = if (la.prefixLength == 0) 0 else -1 shl (32 - la.prefixLength)
-
-    val broadcast = (ip and mask) or mask.inv()
-    return InetAddress.getByAddress(ByteBuffer.allocate(4).putInt(broadcast).array())
 }
 
 class System(private val app: MainActivity) {
