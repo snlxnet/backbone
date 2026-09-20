@@ -11,19 +11,19 @@ backbone.startup(props: {
 The url opens at startup. The shell command runs in termux. Delay sets the time in milliseconds between the termux is called and the webview is started. This is useful if you set the URL to a local port of a server running in termux.
 
 ```ts
-backbone.ble.central(deviceNames: string[])
+backbone.bleCentral(deviceNames: string[])
 ```
 
 ```ts
-backbone.ble.peripheral(deviceName: string)
+backbone.blePeripheral(deviceName: string)
 ```
 
 ```ts
-backbone.ble.send(message: string)
+backbone.bleSend(message: string)
 ```
 
 ```ts
-backbone.ble.onmessage: (message: string, device?: string) => void
+backbone.onBleMessage: (message: string, device?: string) => void
 ```
 
 `addEventListener` is not implemented, so here's how you can subscribe to incoming messages. The `device` is only set if `ble` is running in `central` mode.

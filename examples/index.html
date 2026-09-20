@@ -19,9 +19,14 @@
       <input type="sh" placholder="termux sh" id="sh">
 
       <button id="reload">Reload</button>
+
+      <pre id="pretext"></pre>
     </main>
 
     <script>
+      backbone.onBleMessage = (device, msg) => pretext.textContent += device + ": " + msg + "\n"
+      backbone.onBleMessage?.("none", "sanity check")
+      backbone.bleCentral(["cp-test"])
       url.onchange = () => backbone.replaceApp(url.value)
       sh.onchange = () => {
         fetch("http://127.0.0.1:2077/sh", { method: "POST", body: sh.value })

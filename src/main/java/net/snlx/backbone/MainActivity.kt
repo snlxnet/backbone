@@ -22,6 +22,7 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothGattDescriptor
 import android.Manifest
+import android.util.Log
 import java.net.Socket
 import java.net.ServerSocket
 import java.io.PrintWriter
@@ -36,19 +37,12 @@ import androidx.core.app.ActivityCompat
 val DEFAULT_URL = "http://192.168.50.174:8899"
 
 class MainActivity : Activity() {
-    private lateinit var webview: WebView
-    private lateinit var bleClient: BleClient
+    lateinit var webview: WebView
+    var bleClient: BleClient? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        bleClient = BleClient(this, setOf("cp-test"), {msg ->
-            runOnUiThread({
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-            })
-}, {_, _ -> })
-bleClient.startScan()
-        
         webview = WebView(this)
         setContentView(webview)
         webview.settings.userAgentString = "backbone"
@@ -122,14 +116,6 @@ bleClient.startScan()
                 runOnUiThread {
                     webview.reload()
                 }
-            } else if (path == "/toggle") {
-                output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                output.write("Okay")
-                bleClient.sendToggle("cp-test")
-            } else if (path == "/scan") {
-                output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                bleClient.startScan()
-                output.write("Okay")
             } else {
                 output.write("HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
                 output.write("Command not found" + path)
@@ -140,11 +126,6 @@ bleClient.startScan()
 
 class System(private val app: MainActivity) {
     @JavascriptInterface
-    fun showToast(message: String) {
-        Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
-    }
-
-    @JavascriptInterface
     fun replaceApp(url: String) {
         val pref = app.getPreferences(Context.MODE_PRIVATE) ?: return
 
@@ -153,12 +134,27 @@ class System(private val app: MainActivity) {
             apply()
         }
     }
+
+    @JavascriptInterface
+    fun bleCentral(deviceNames: Array<String>) {
+        app.bleClient = BleClient(app, deviceNames.toSet(), {deviceName, message ->
+            app.runOnUiThread {
+                val deviceJson = org.json.JSONObject.quote(deviceName)
+                val messageJson = org.json.JSONObject.quote(message)
+
+                app.webview.evaluateJavascript(
+                    "backbone.onBleMessage?.($deviceJson, $messageJson)",
+                    null
+                )
+            }
+        })
+        app.bleClient?.startScan()
+    }
 }
 
 class BleClient(
     private val context: Context,
     private val deviceNames: Set<String>,
-    private val onStateChanged: (String) -> Unit,
     private val onMessage: (deviceName: String, message: String) -> Unit,
 ) {
     companion object {
@@ -187,7 +183,7 @@ class BleClient(
             if (sessions.containsKey(device.name)) return
 
             sessions[device.name] = DeviceSession()
-            onStateChanged("Connecting to $name")
+            Log.v("BACKBONE", "ble found: " + name)
             device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
         }
     }
@@ -199,12 +195,12 @@ class BleClient(
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 session.gatt = gatt
-                onStateChanged("Connected to ${gatt.device.name ?: name}")
                 gatt.discoverServices()
+                Log.v("BACKBONE", "ble connected: " + name)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                onStateChanged("Disconnected from ${gatt.device.name ?: name}")
                 session.gatt?.close()
                 sessions.remove(name)
+                onMessage(name, "disconnected")
             }
         }
 
@@ -220,7 +216,8 @@ class BleClient(
             session.txChar = tx
 
             enableNotifications(gatt, tx)
-            onStateChanged("Ready: ${name ?: gatt.device.address}")
+            Log.v("BACKBONE", "ble configured: " + name)
+            onMessage(name, "connected")
         }
 
         override fun onCharacteristicChanged(
@@ -246,14 +243,12 @@ class BleClient(
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            onStateChanged("Missing BLUETOOTH_SCAN")
             return
         }
         val settings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .build()
         scanner.startScan(null, settings, scanCallback)
-        onStateChanged("Scanning")
     }
 
     fun stopScan() {
