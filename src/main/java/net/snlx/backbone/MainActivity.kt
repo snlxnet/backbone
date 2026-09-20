@@ -137,6 +137,7 @@ class System(private val app: MainActivity) {
 
     @JavascriptInterface
     fun bleCentral(deviceNames: Array<String>) {
+        app.bleClient?.destroy()
         app.bleClient = BleClient(app, deviceNames.toSet(), {deviceName, message ->
             app.runOnUiThread {
                 val deviceJson = org.json.JSONObject.quote(deviceName)
@@ -183,7 +184,6 @@ class BleClient(
             if (sessions.containsKey(device.name)) return
 
             sessions[device.name] = DeviceSession()
-            Log.v("BACKBONE", "ble found: " + name)
             device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
         }
     }
@@ -196,7 +196,6 @@ class BleClient(
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 session.gatt = gatt
                 gatt.discoverServices()
-                Log.v("BACKBONE", "ble connected: " + name)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 session.gatt?.close()
                 sessions.remove(name)
@@ -253,6 +252,13 @@ class BleClient(
 
     fun stopScan() {
         scanner.stopScan(scanCallback)
+    }
+
+    fun destroy() {
+        stopScan()
+        sessions.forEach({session ->
+            session.value.gatt?.close()
+        })
     }
 
     fun sendToggle(deviceName: String) {
