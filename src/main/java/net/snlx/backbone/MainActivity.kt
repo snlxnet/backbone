@@ -3,6 +3,7 @@ package net.snlx.backbone
 import android.app.Activity
 import android.os.Bundle
 import android.os.ParcelUuid
+import android.os.Build
 import android.widget.TextView
 import android.widget.Toast
 import android.webkit.WebView
@@ -39,35 +40,77 @@ import java.util.Vector
 import java.util.UUID
 import kotlin.sequences.takeWhile
 import net.snlx.backbone.BleClient
+import net.snlx.backbone.BleServer
 import androidx.core.app.ActivityCompat
+import androidx.activity.result.contract.ActivityResultContracts
 
-val DEFAULT_URL = "http://192.168.50.174:8899"
+const val DEFAULT_URL = "http://example.com"
+val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
 class MainActivity : Activity() {
     lateinit var webview: WebView
     var bleClient: BleClient? = null
+    var bleServer: BleServer? = null
+    private var onPermsGranted: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        webview = WebView(this)
-        setContentView(webview)
-        webview.settings.userAgentString = "backbone"
-        webview.settings.cacheMode = WebSettings.LOAD_NO_CACHE
-        webview.settings.javaScriptEnabled = true
-        webview.addJavascriptInterface(System(this), "backbone")
+        onPermsGranted = {
+            webview = WebView(this)
+            setContentView(webview)
+            webview.settings.userAgentString = "backbone"
+            webview.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+            webview.settings.javaScriptEnabled = true
+            webview.addJavascriptInterface(System(this), "backbone")
 
-        val pref = this.getPreferences(Context.MODE_PRIVATE) ?: return
-        val url = pref.getString("url", DEFAULT_URL).toString()
-        webview.loadUrl(url)
+            val pref = this.getPreferences(Context.MODE_PRIVATE)
+            val url = pref.getString("url", DEFAULT_URL).toString()
+            webview.loadUrl(url)
 
-        startApi()
-        serve(17500, {input, output ->
-            val path = input.readLine().split(" ")[1]
+            bleServer = BleServer(this, "cp-test", {msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()})
+            bleServer?.start()
+            Thread {
+                while (!Thread.currentThread().isInterrupted) {
+                    bleServer?.sendToggle()
+                    Thread.sleep(1000)
+                }
+            }.start()
+        }
 
-            output.write("HTTP/1.1 200 OK\r\n\r\n")
-            output.write("Path: " + path + "\n")
-        })
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_ADVERTISE,
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                    ),
+                    1001
+                )
+                return
+            }
+        }
+
+        onPermsGranted?.invoke()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 1001 && grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            onPermsGranted?.invoke()
+            onPermsGranted = null
+        }
     }
 
     fun serve(port: Int, handler: (input: BufferedReader, output: PrintWriter) -> Unit) {
@@ -165,13 +208,6 @@ class BleClient(
     private val deviceNames: Set<String>,
     private val onMessage: (deviceName: String, message: String) -> Unit,
 ) {
-    companion object {
-        private val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-    }
-
     private data class DeviceSession(
         var gatt: BluetoothGatt? = null,
         var rxChar: BluetoothGattCharacteristic? = null,
@@ -284,13 +320,6 @@ class BleServer(
     private val deviceName: String,
     private val onMessage: (message: String) -> Unit,
 ) {
-    companion object {
-        private val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-        private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-    }
-
     private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
     private val adapter = bluetoothManager.adapter
     private val advertiser = adapter.bluetoothLeAdvertiser
@@ -301,6 +330,7 @@ class BleServer(
 
     private val gattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+            Log.v("BACKBONE", "state changed")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 currentClient = device
                 onMessage("client connected: ${device.name ?: device.address}")
@@ -364,9 +394,13 @@ class BleServer(
     }
 
     fun start() {
+        Log.v("BACKBONE", "logging works")
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE)
             != PackageManager.PERMISSION_GRANTED
         ) return
+        Log.v("BACKBONE", "permission acquired")
+
+        adapter.name = deviceName
 
         bluetoothLeService = bluetoothManager.openGattServer(context, gattServerCallback)
         bluetoothLeService?.addService(service)
@@ -375,12 +409,14 @@ class BleServer(
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setConnectable(true)
             .build()
+        Log.v("BACKBONE", "settings built")
 
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid(UART_SERVICE_UUID))
             .build()
 
+        Log.v("BACKBONE", "advertising started")
         advertiser.startAdvertising(settings, data, advertiseCallback)
     }
 
