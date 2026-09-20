@@ -19,8 +19,10 @@ backbone.blePeripheral(deviceName: string)
 ```
 
 ```ts
-backbone.bleSend(message: string)
+backbone.bleSend(message: string, device?: string)
 ```
+
+You only have to specify the device if the node is running in central mode.
 
 ```ts
 backbone.onBleMessage: (message: string, device?: string) => void

@@ -9,6 +9,7 @@ import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebSettings
 import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
 import android.webkit.JavascriptInterface
 import android.content.Context
 import android.content.Intent
@@ -44,7 +45,7 @@ import net.snlx.backbone.BleServer
 import androidx.core.app.ActivityCompat
 import androidx.activity.result.contract.ActivityResultContracts
 
-const val DEFAULT_URL = "http://example.com"
+const val DEFAULT_URL = "http://192.168.50.174:8899"
 val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -66,19 +67,15 @@ class MainActivity : Activity() {
             webview.settings.cacheMode = WebSettings.LOAD_NO_CACHE
             webview.settings.javaScriptEnabled = true
             webview.addJavascriptInterface(System(this), "backbone")
+            webview.webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    return false
+                }
+            }
 
             val pref = this.getPreferences(Context.MODE_PRIVATE)
             val url = pref.getString("url", DEFAULT_URL).toString()
             webview.loadUrl(url)
-
-            bleServer = BleServer(this, "cp-test", {msg -> Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()})
-            bleServer?.start()
-            Thread {
-                while (!Thread.currentThread().isInterrupted) {
-                    bleServer?.sendToggle()
-                    Thread.sleep(1000)
-                }
-            }.start()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -187,19 +184,40 @@ class System(private val app: MainActivity) {
 
     @JavascriptInterface
     fun bleCentral(deviceNames: Array<String>) {
-        app.bleClient?.destroy()
-        app.bleClient = BleClient(app, deviceNames.toSet(), {deviceName, message ->
-            app.runOnUiThread {
-                val deviceJson = org.json.JSONObject.quote(deviceName)
-                val messageJson = org.json.JSONObject.quote(message)
+        app.bleServer?.stop()
+        app.bleClient?.stop()
+        app.bleClient = BleClient(app, deviceNames.toSet(), {dev, msg -> onBleMessage(msg, dev)})
+        app.bleClient?.start()
+    }
 
-                app.webview.evaluateJavascript(
-                    "backbone.onBleMessage?.($deviceJson, $messageJson)",
-                    null
-                )
-            }
-        })
-        app.bleClient?.startScan()
+    @JavascriptInterface
+    fun blePeripheral(deviceName: String) {
+        app.bleClient?.stop()
+        app.bleServer?.stop()
+        app.bleServer = BleServer(app, deviceName, {msg -> onBleMessage(msg, null)})
+        app.bleServer?.start()
+    }
+
+    @JavascriptInterface
+    fun send(message: String, deviceName: String?) {
+        Log.v("BACKBONE", "client wanna send")
+        app.bleServer?.send(message)
+
+        if (deviceName != null) {
+            app.bleClient?.send(message, deviceName)
+        }
+    }
+
+    fun onBleMessage(message: String, device: String?) {
+        app.runOnUiThread {
+            val deviceJson = device?.let { org.json.JSONObject.quote(it) } ?: "undefined"
+            val messageJson = org.json.JSONObject.quote(message)
+
+            app.webview.evaluateJavascript(
+                "backbone.onBleMessage?.($deviceJson, $messageJson)",
+                null
+            )
+        }
     }
 }
 
@@ -281,12 +299,13 @@ class BleClient(
         gatt.writeDescriptor(cccd)
     }
 
-    fun startScan() {
+    fun start() {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return
         }
+        adapter.name = "backbone"
         val settings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
         .build()
@@ -297,20 +316,24 @@ class BleClient(
         scanner.stopScan(scanCallback)
     }
 
-    fun destroy() {
+    fun stop() {
         stopScan()
         sessions.forEach({session ->
             session.value.gatt?.close()
         })
     }
 
-    fun sendToggle(deviceName: String) {
+    fun send(message: String, deviceName: String) {
         val session = sessions[deviceName] ?: return
+        Log.v("BACKBONE", "have session")
         val gatt = session.gatt ?: return
+        Log.v("BACKBONE", "have gatt")
         val rx = session.rxChar ?: return
+        Log.v("BACKBONE", "have rx")
 
-        rx.value = "TOGGLE".toByteArray(Charsets.UTF_8)
+        rx.value = message.toByteArray(Charsets.UTF_8)
         gatt.writeCharacteristic(rx)
+        Log.v("BACKBONE", "sent: " + message)
     }
 }
 
@@ -351,6 +374,32 @@ class BleServer(
         ) {
             if (characteristic.uuid == UART_RX_UUID) {
                 onMessage(value.toString(Charsets.UTF_8))
+            }
+
+            if (responseNeeded) {
+                bluetoothLeService?.sendResponse(
+                    device,
+                    requestId,
+                    BluetoothGatt.GATT_SUCCESS,
+                    offset,
+                    value
+                )
+            }
+        }
+
+        override fun onDescriptorWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            descriptor: BluetoothGattDescriptor,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray,
+        ) {
+            Log.v("BACKBONE", "descriptor write: ${descriptor.uuid}")
+
+            if (descriptor.uuid == CCCD_UUID) {
+                onMessage("notifications ${if (value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) "enabled" else "disabled"}")
             }
 
             if (responseNeeded) {
@@ -426,13 +475,18 @@ class BleServer(
         bluetoothLeService = null
     }
 
-    fun sendToggle() {
+    fun send(message: String) {
+        Log.v("BACKBONE", "wanna send")
         val client = currentClient ?: return
+        Log.v("BACKBONE", "have client")
         val char = txChar ?: return
+        Log.v("BACKBONE", "have char")
         val gatt = bluetoothLeService ?: return
+        Log.v("BACKBONE", "have gatt")
 
-        char.value = "TOGGLE".toByteArray(Charsets.UTF_8)
+        char.value = message.toByteArray(Charsets.UTF_8)
         gatt.notifyCharacteristicChanged(client, char, false)
+        Log.v("BACKBONE", "sent: " + message)
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {}

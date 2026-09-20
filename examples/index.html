@@ -18,7 +18,11 @@
 
       <input type="sh" placholder="termux sh" id="sh">
 
-      <button id="reload">Reload</button>
+      <button id="rel">Reload</button>
+
+      <button id="becentral">Be Central</button>
+      <button id="beperipheral">Be Peripheral</button>
+      <button id="sendhi">Send Hi</button>
 
       <pre id="pretext"></pre>
     </main>
@@ -26,14 +30,18 @@
     <script>
       backbone.onBleMessage = (device, msg) => pretext.textContent += device + ": " + msg + "\n"
       backbone.onBleMessage?.("none", "sanity check")
-      backbone.bleCentral(["cp-test"])
+
+      becentral.onclick = () => backbone.bleCentral(["cp-test"])
+      beperipheral.onclick = () => backbone.blePeripheral("cp-test")
+      sendhi.onclick = () => backbone.send("hi", "cp-test")
+
       url.onchange = () => backbone.replaceApp(url.value)
       sh.onchange = () => {
         fetch("http://127.0.0.1:2077/sh", { method: "POST", body: sh.value })
           .then((res) => backbone.showToast("termux: " + res.statusText))
           .catch(() => backbone.showToast("Failed to fetch"))
       }
-      reload.onclick = () => fetch("http://127.0.0.1:2077/reload")
+      rel.onclick = () => window.location.reload()
     </script>
   </body>
 </html>
