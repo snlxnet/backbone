@@ -2,6 +2,7 @@ package net.snlx.backbone
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.ParcelUuid
 import android.widget.TextView
 import android.widget.Toast
 import android.webkit.WebView
@@ -17,10 +18,16 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothGattServerCallback
+import android.bluetooth.BluetoothGattServer
 import android.Manifest
 import android.util.Log
 import java.net.Socket
@@ -269,5 +276,129 @@ class BleClient(
         rx.value = "TOGGLE".toByteArray(Charsets.UTF_8)
         gatt.writeCharacteristic(rx)
     }
+}
+
+// GPT-5.4 mini generated after much less nudging than the last time
+class BleServer(
+    private val context: Context,
+    private val deviceName: String,
+    private val onMessage: (message: String) -> Unit,
+) {
+    companion object {
+        private val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+        private val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+        private val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
+        private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+    }
+
+    private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
+    private val adapter = bluetoothManager.adapter
+    private val advertiser = adapter.bluetoothLeAdvertiser
+
+    private var bluetoothLeService: BluetoothGattServer? = null
+    private var currentClient: BluetoothDevice? = null
+    private var txChar: BluetoothGattCharacteristic? = null
+
+    private val gattServerCallback = object : BluetoothGattServerCallback() {
+        override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                currentClient = device
+                onMessage("client connected: ${device.name ?: device.address}")
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                if (currentClient?.address == device.address) currentClient = null
+                onMessage("client disconnected")
+            }
+        }
+
+        override fun onCharacteristicWriteRequest(
+            device: BluetoothDevice,
+            requestId: Int,
+            characteristic: BluetoothGattCharacteristic,
+            preparedWrite: Boolean,
+            responseNeeded: Boolean,
+            offset: Int,
+            value: ByteArray,
+        ) {
+            if (characteristic.uuid == UART_RX_UUID) {
+                onMessage(value.toString(Charsets.UTF_8))
+            }
+
+            if (responseNeeded) {
+                bluetoothLeService?.sendResponse(
+                    device,
+                    requestId,
+                    BluetoothGatt.GATT_SUCCESS,
+                    offset,
+                    value
+                )
+            }
+        }
+    }
+
+    private val service = BluetoothGattService(
+        UART_SERVICE_UUID,
+        BluetoothGattService.SERVICE_TYPE_PRIMARY
+    ).apply {
+        addCharacteristic(
+            BluetoothGattCharacteristic(
+                UART_RX_UUID,
+                BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
+                BluetoothGattCharacteristic.PERMISSION_WRITE
+            )
+        )
+
+        txChar = BluetoothGattCharacteristic(
+            UART_TX_UUID,
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+            BluetoothGattCharacteristic.PERMISSION_READ
+        ).apply {
+            addDescriptor(
+                BluetoothGattDescriptor(
+                    CCCD_UUID,
+                    BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
+                )
+            )
+        }
+
+        addCharacteristic(txChar)
+    }
+
+    fun start() {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE)
+            != PackageManager.PERMISSION_GRANTED
+        ) return
+
+        bluetoothLeService = bluetoothManager.openGattServer(context, gattServerCallback)
+        bluetoothLeService?.addService(service)
+
+        val settings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+            .setConnectable(true)
+            .build()
+
+        val data = AdvertiseData.Builder()
+            .setIncludeDeviceName(true)
+            .addServiceUuid(ParcelUuid(UART_SERVICE_UUID))
+            .build()
+
+        advertiser.startAdvertising(settings, data, advertiseCallback)
+    }
+
+    fun stop() {
+        advertiser.stopAdvertising(advertiseCallback)
+        bluetoothLeService?.close()
+        bluetoothLeService = null
+    }
+
+    fun sendToggle() {
+        val client = currentClient ?: return
+        val char = txChar ?: return
+        val gatt = bluetoothLeService ?: return
+
+        char.value = "TOGGLE".toByteArray(Charsets.UTF_8)
+        gatt.notifyCharacteristicChanged(client, char, false)
+    }
+
+    private val advertiseCallback = object : AdvertiseCallback() {}
 }
 
