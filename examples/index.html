@@ -22,7 +22,9 @@
 
       <button id="becentral">Be Central</button>
       <button id="beperipheral">Be Peripheral</button>
+      <button id="beperipheral2">Be Peripheral 2</button>
       <button id="sendhi">Send Hi</button>
+      <button id="sendhi2">Send Hi</button>
 
       <pre id="pretext"></pre>
     </main>
@@ -31,9 +33,11 @@
       backbone.onBleMessage = (device, msg) => pretext.textContent += device + ": " + msg + "\n"
       backbone.onBleMessage?.("none", "sanity check")
 
-      becentral.onclick = () => backbone.bleCentral(["cp-test"])
-      beperipheral.onclick = () => backbone.blePeripheral("cp-test")
-      sendhi.onclick = () => backbone.send("hi", "cp-test")
+      becentral.onclick = () => backbone.bleCentral(["per-1", "per-2", "cp-test"])
+      beperipheral.onclick = () => backbone.blePeripheral("per-1")
+      beperipheral2.onclick = () => backbone.blePeripheral("per-2")
+      sendhi.onclick = () => backbone.send("hi", "per-1")
+      sendhi2.onclick = () => backbone.send("hi", "per-2")
 
       url.onchange = () => backbone.replaceApp(url.value)
       sh.onchange = () => {

@@ -32,6 +32,7 @@ import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattServer
 import android.Manifest
 import android.util.Log
+import android.view.WindowManager
 import java.net.Socket
 import java.net.ServerSocket
 import java.io.PrintWriter
@@ -43,6 +44,9 @@ import kotlin.sequences.takeWhile
 import net.snlx.backbone.BleClient
 import net.snlx.backbone.BleServer
 import androidx.core.app.ActivityCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
 
 const val DEFAULT_URL = "http://192.168.50.174:8899"
@@ -59,6 +63,12 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         onPermsGranted = {
             webview = WebView(this)
@@ -302,10 +312,14 @@ class BleClient(
 
     fun start() {
         Log.v("BACKBONE", "Requesting permissions")
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        } else {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
         }
         Log.v("BACKBONE", "Starting central")
         adapter.name = "backbone"
@@ -447,9 +461,15 @@ class BleServer(
 
     fun start() {
         Log.v("BACKBONE", "logging works")
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        } else {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
         Log.v("BACKBONE", "permission acquired")
 
         adapter.name = deviceName
