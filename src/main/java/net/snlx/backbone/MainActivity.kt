@@ -53,7 +53,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
-const val DEFAULT_URL = "http://localhost:8899"
+const val DEFAULT_URL = "http://192.168.50.174:8899/app"
 val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -118,46 +118,28 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissions(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_ADVERTISE,
-                        Manifest.permission.BLUETOOTH_CONNECT,
-                        Manifest.permission.BLUETOOTH_SCAN,
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.RECORD_AUDIO,
-                    ),
-                    1001
-                )
-                return
-            }
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_ADVERTISE,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO,
+                ),
+                1001
+            )
         } else {
-            if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPermissions(
-                    arrayOf(
-                        Manifest.permission.BLUETOOTH_ADMIN,
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.CAMERA,
-                        Manifest.permission.RECORD_AUDIO,
-                    ),
-                    1001
-                )
-                return
-            }
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_ADMIN,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO,
+                ),
+                1001
+            )
         }
-
-        onPermsGranted?.invoke()
     }
 
     override fun onRequestPermissionsResult(
@@ -211,7 +193,7 @@ class System(private val app: MainActivity) {
     fun central(deviceNames: Array<String>) {
         app.bleServer?.stop()
         app.bleClient?.stop()
-        app.bleClient = BleClient(app, deviceNames.toSet(), {dev, msg -> onBleMessage(msg, dev)})
+        app.bleClient = BleClient(app, deviceNames.toSet(), {msg, dev -> onBleMessage(msg, dev)})
         app.bleClient?.start()
     }
 
@@ -238,7 +220,7 @@ class System(private val app: MainActivity) {
             val messageJson = org.json.JSONObject.quote(message)
 
             app.webview.evaluateJavascript(
-                "backbone.onmessage?.($deviceJson, $messageJson)",
+                "backbone.onmessage?.($messageJson, $deviceJson)",
                 null
             )
         }
@@ -248,7 +230,7 @@ class System(private val app: MainActivity) {
 class BleClient(
     private val context: Context,
     private val deviceNames: Set<String>,
-    private val onMessage: (deviceName: String, message: String) -> Unit,
+    private val onMessage: (message: String, deviceName: String) -> Unit,
 ) {
     private data class DeviceSession(
         var gatt: BluetoothGatt? = null,
@@ -284,7 +266,7 @@ class BleClient(
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 session.gatt?.close()
                 sessions.remove(name)
-                onMessage(name, "disconnected")
+                onMessage("disconnected", name)
             }
         }
 
@@ -300,8 +282,7 @@ class BleClient(
             session.txChar = tx
 
             enableNotifications(gatt, tx)
-            Log.v("BACKBONE", "ble configured: " + name)
-            onMessage(name, "connected")
+            onMessage("connected", name)
         }
 
         override fun onCharacteristicChanged(
@@ -312,7 +293,7 @@ class BleClient(
 
             val name = gatt.device.name ?: gatt.device.address
             val message = characteristic.value?.toString(Charsets.UTF_8).orEmpty()
-            onMessage(name, message)
+            onMessage(message, name)
         }
     }
 
@@ -324,7 +305,6 @@ class BleClient(
     }
 
     fun start() {
-        Log.v("BACKBONE", "Requesting permissions")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
                 return
@@ -334,7 +314,6 @@ class BleClient(
                 return
             }
         }
-        Log.v("BACKBONE", "Starting central")
         adapter.name = "backbone"
         val settings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
@@ -355,15 +334,11 @@ class BleClient(
 
     fun send(message: String, deviceName: String) {
         val session = sessions[deviceName] ?: return
-        Log.v("BACKBONE", "have session")
         val gatt = session.gatt ?: return
-        Log.v("BACKBONE", "have gatt")
         val rx = session.rxChar ?: return
-        Log.v("BACKBONE", "have rx")
 
         rx.value = message.toByteArray(Charsets.UTF_8)
         gatt.writeCharacteristic(rx)
-        Log.v("BACKBONE", "sent: " + message)
     }
 }
 
@@ -383,7 +358,6 @@ class BleServer(
 
     private val gattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
-            Log.v("BACKBONE", "state changed")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 currentClient = device
                 onMessage("client connected: ${device.name ?: device.address}")
@@ -426,10 +400,8 @@ class BleServer(
             offset: Int,
             value: ByteArray,
         ) {
-            Log.v("BACKBONE", "descriptor write: ${descriptor.uuid}")
-
             if (descriptor.uuid == CCCD_UUID) {
-                onMessage("notifications ${if (value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) "enabled" else "disabled"}")
+                onMessage("connected")
             }
 
             if (responseNeeded) {
@@ -473,7 +445,6 @@ class BleServer(
     }
 
     fun start() {
-        Log.v("BACKBONE", "logging works")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED) {
                 return
@@ -483,7 +454,6 @@ class BleServer(
                 return
             }
         }
-        Log.v("BACKBONE", "permission acquired")
 
         adapter.name = deviceName
 
@@ -494,14 +464,12 @@ class BleServer(
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setConnectable(true)
             .build()
-        Log.v("BACKBONE", "settings built")
 
         val data = AdvertiseData.Builder()
             .setIncludeDeviceName(true)
             .addServiceUuid(ParcelUuid(UART_SERVICE_UUID))
             .build()
 
-        Log.v("BACKBONE", "advertising started")
         advertiser.startAdvertising(settings, data, advertiseCallback)
     }
 
@@ -512,17 +480,12 @@ class BleServer(
     }
 
     fun send(message: String) {
-        Log.v("BACKBONE", "wanna send")
         val client = currentClient ?: return
-        Log.v("BACKBONE", "have client")
         val char = txChar ?: return
-        Log.v("BACKBONE", "have char")
         val gatt = bluetoothLeService ?: return
-        Log.v("BACKBONE", "have gatt")
 
         char.value = message.toByteArray(Charsets.UTF_8)
         gatt.notifyCharacteristicChanged(client, char, false)
-        Log.v("BACKBONE", "sent: " + message)
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {}
