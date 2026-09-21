@@ -3,3 +3,4 @@
 - https://codezup.com/custom-android-launchers-guide
 - https://codingtechroom.com/question/android-tcp-server-client-communication
 - https://www.geeksforgeeks.org/android/multithreading-in-android-with-examples
+- https://stackoverflow.com/questions/39627268/android-webview-keyboard-covering-up-input
