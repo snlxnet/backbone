@@ -9,8 +9,10 @@ import android.widget.Toast
 import android.webkit.WebView
 import android.webkit.WebSettings
 import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -33,6 +35,7 @@ import android.bluetooth.BluetoothGattServer
 import android.Manifest
 import android.util.Log
 import android.view.WindowManager
+import android.media.AudioManager
 import java.net.Socket
 import java.net.ServerSocket
 import java.io.PrintWriter
@@ -48,14 +51,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 
-const val DEFAULT_URL = "http://192.168.50.174:8899"
+const val DEFAULT_URL = "https://microphone-test.com"
 val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-class MainActivity : Activity() {
+class MainActivity : AppCompatActivity() {
     lateinit var webview: WebView
     var bleClient: BleClient? = null
     var bleServer: BleServer? = null
@@ -63,6 +67,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WebView.setWebContentsDebuggingEnabled(true)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -73,13 +79,25 @@ class MainActivity : Activity() {
         onPermsGranted = {
             webview = WebView(this)
             setContentView(webview)
-            webview.settings.userAgentString = "backbone"
             webview.settings.cacheMode = WebSettings.LOAD_NO_CACHE
             webview.settings.javaScriptEnabled = true
+            webview.settings.domStorageEnabled = true
+            webview.settings.mediaPlaybackRequiresUserGesture = false
+            webview.settings.allowFileAccess = true
+            webview.settings.allowContentAccess = true
+            webview.settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             webview.addJavascriptInterface(System(this), "backbone")
             webview.webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     return false
+                }
+            }
+            webview.webChromeClient = object : WebChromeClient() {
+                override fun onPermissionRequest(request: PermissionRequest) {
+                    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+
+                    request.grant(request.resources)
                 }
             }
 
@@ -91,7 +109,10 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED ||
                 checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
+                checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
             ) {
                 requestPermissions(
                     arrayOf(
@@ -99,6 +120,25 @@ class MainActivity : Activity() {
                         Manifest.permission.BLUETOOTH_CONNECT,
                         Manifest.permission.BLUETOOTH_SCAN,
                         Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO,
+                    ),
+                    1001
+                )
+                return
+            }
+        } else {
+            if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissions(
+                    arrayOf(
+                        Manifest.permission.BLUETOOTH_ADMIN,
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO,
                     ),
                     1001
                 )
