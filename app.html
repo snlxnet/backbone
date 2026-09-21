@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Backbone</title>
+  <style>
+  * {
+    box-sizing: border-box;
+    font-size: inherit;
+    font-family: inherit;
+    color: inherit;
+    font-size: 16px;
+  }
+  html {
+    background: #3e312a;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    margin: 0;
+    padding: 1em;
+    font-family: monospace;
+    color: #ad9f92;
+  }
+  img {
+    width: 100%;
+  }
+  h2 {
+    color: #c9c1ba;
+    font-size: 18px;
+  }
+  form {
+    display: flex;
+    align-items: flex-end;
+    border: none;
+    margin: 0;
+    padding: 1em 0;
+    gap: 1em;
+  }
+  label {
+    width: 100%;
+    line-height: 2;
+  }
+  input, .input, button {
+    display: inline-flex;justify-content: center;align-items: center;
+    border: none;
+    background: #5a4741;
+    margin: 0;
+    padding: 1em;
+    width: 100%;
+    height: 4em;
+    border-radius: 1em;
+    outline: none;
+  }
+  button {
+    background: #ad9f92;
+    color: #3e312a;
+    width: fit-content;
+  }
+  #messageboard {
+    border-radius: 1em;
+    border: 0.3em solid #ad9f92;
+    padding: 1em;
+    overflow: auto;
+    height: 80vh;
+  }
+  #messageboard:empty {
+    display: none;
+  }
+  </style>
+</head>
+<body>
+  <img src="/banner.svg">
+
+  <h2>BLE Config</h2>
+  <p>Current mode: <span id="mode">off</span></p>
+  <form id="central">
+    <label>
+      Peripheral names
+      <input id="names" placeholder="dev-1, dev-2">
+    </label>
+    <button>Start central</button>
+  </form>
+  <form id="peripheral">
+    <label>
+      Peripheral name
+      <input id="devname" placeholder="dev-1">
+    </label>
+    <button>Start peripheral</button>
+  </form>
+
+  <h2>BLE Messages</h2>
+  <pre id="messageboard"></pre>
+  <form id="send">
+    <label>
+      Recipient
+      <input id="recipient" placeholder="hi">
+    </label>
+    <label>
+      Message
+      <input id="message" placeholder="hi">
+    </label>
+    <button>Send</button>
+  </form>
+
+  <h2>Startup Config</h2>
+  <label>
+    URL
+    <input id="url" placeholder="http://localhost:8000">
+  </label>
+  <label>
+    Fullscreen
+    <button id="togglefullscreen" style="width: 100%">Off</button>
+  </label>
+  <label>
+    Shell command
+    <input id="shellcommand" placeholder="cd project; sh run.sh">
+  </label>
+  <label>
+    Delay between shell & web
+    <input id="delay" type="number" value="1000">
+  </label>
+  <p></p>
+  <button id="apply" style="width: 100%">Apply on restart</button>
+
+  <script>
+    central.onsubmit = (e) => {
+      e.preventDefault()
+      if (!names.value.trim()) return
+      backbone.central(names.value.split(",").map(name => name.trim()))
+      mode.textContent = "central"
+    }
+
+    peripheral.onsubmit = (e) => {
+      e.preventDefault()
+      const name = devname.value.trim()
+      if (!name) return
+      backbone.peripheral(name)
+      mode.textContent = "peripheral"
+    }
+
+    send.onsubmit = (e) => {
+      e.preventDefault()
+      const msg = message.value.trim()
+      if (!msg) return
+      backbone.send(msg, recipient.value.trim())
+      message.value = ""
+    }
+
+    let fullscreen = false
+    togglefullscreen.onclick = () => {
+      fullscreen = !fullscreen
+      togglefullscreen.textContent = fullscreen ? "On" : "Off"
+    }
+    apply.onclick = () => {
+      if (!url.value) {
+        apply.textContent = "No, because there's no URL"
+        return
+      }
+
+      backbone.startup(url.value, fullscreen, shellcommand.value, +delay.value)
+      apply.textContent = "Ok"
+    }
+
+    backbone.onmessage = (message, device) => messageboard.textContent += `${device}: ${message}\n`
+  </script>
+</body>
+</html>

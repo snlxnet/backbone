@@ -4,4 +4,5 @@
   ]
 
   asset("doc.css", read("doc.css"))
+  asset("app.html", read("app.html"))
 }

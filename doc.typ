@@ -4,7 +4,7 @@
 #let light = rgb("#c9c1ba")
 #let dark = rgb("#ad9f92")
 #let darker = rgb("#5a4741")
-#let darkest = rgb("#3e312aff")
+#let darkest = rgb("#3e312a")
 #let black = rgb("#000")
 
 // doc
