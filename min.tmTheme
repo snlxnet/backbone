@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+======================================================================
+Solarflare
+======================================================================
+A Sublime Text / Textmate theme.
+Copyright (c) 2018 Dayle Rees <me@daylerees.com>.
+Released under the MIT License <http://opensource.org/licenses/MIT>
+======================================================================
+Find more themes at : https://github.com/rainglow
+======================================================================
+-->
+<plist version="1.0">
+<dict>
+    <key>name</key>
+    <string>Solarflare (rainglow)</string>
+    <key>settings</key>
+    <array>
+        <dict>
+            <key>settings</key>
+            <dict>
+                <key>background</key>
+                <string>#222222</string>
+                <key>caret</key>
+                <string>#f8f8f0</string>
+                <key>foreground</key>
+                <string>#e3e2e0</string>
+                <key>invisibles</key>
+                <string>#484848</string>
+                <key>lineHighlight</key>
+                <string>#2a2a2a</string>
+                <key>selection</key>
+                <string>#ff4e50</string>
+                <key>selectionForeground</key>
+                <string>#ffffff</string>
+                <key>findHighlight</key>
+                <string>#ffe792</string>
+                <key>findHighlightForeground</key>
+                <string>#333333</string>
+                <key>selectionBorder</key>
+                <string>#ffffff</string>
+                <key>activeGuide</key>
+                <string>#3b3b3b</string>
+
+                <key>bracketsForeground</key>
+                <string>#fc913a</string>
+                <key>bracketsOptions</key>
+                <string>underline</string>
+
+                <key>bracketContentsForeground</key>
+                <string>#ff4e50</string>
+                <key>bracketContentsOptions</key>
+                <string>underline</string>
+
+                <key>tagsOptions</key>
+                <string>stippled_underline</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>Keyword</string>
+            <key>scope</key>
+            <string>keyword</string>
+            <key>settings</key>
+            <dict>
+                <key>foreground</key>
+                <string>#c9c1ba</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>Storage type</string>
+            <key>scope</key>
+            <string>storage.type</string>
+            <key>settings</key>
+            <dict>
+                <key>fontStyle</key>
+                <string></string>
+                <key>foreground</key>
+                <string>#c9c1ba</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>Function name</string>
+            <key>scope</key>
+            <string>entity.name.function</string>
+            <key>settings</key>
+            <dict>
+                <key>fontStyle</key>
+                <string></string>
+                <key>foreground</key>
+                <string>#c9c1ba</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>name</key>
+            <string>Library function</string>
+            <key>scope</key>
+            <string>support.function</string>
+            <key>settings</key>
+            <dict>
+                <key>fontStyle</key>
+                <string></string>
+                <key>foreground</key>
+                <string>#c9c1ba</string>
+            </dict>
+        </dict>
+    </array>
+    <key>uuid</key>
+    <string>#000000</string>
+</dict>
+</plist>

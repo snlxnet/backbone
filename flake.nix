@@ -28,6 +28,8 @@
         pkgs.jdk17
         pkgs.gradle
         pkgs.kotlin-language-server
+
+        pkgs.tinymist
       ];
 
       shellHook = ''

@@ -30,8 +30,3 @@ backbone.onmessage: (message: string, device: string) => void
 
 `addEventListener` is not implemented, so here's how you can subscribe to incoming messages. The `device` is only set if `ble` is running in `central` mode.
 
-```ts
-backbone.sh(command: string): string
-```
-
-Run a one-off command.
