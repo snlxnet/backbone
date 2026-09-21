@@ -30,6 +30,7 @@
         pkgs.kotlin-language-server
 
         pkgs.tinymist
+        pkgs.typst
       ];
 
       shellHook = ''

@@ -19,34 +19,69 @@
   it
 )
 
+#context if target() == "html" {
+  html.link(rel: "stylesheet", href: "doc.css")
+}
+
 #set text(lang: "en")
 #show heading: it => {
   show regex("[A-Za-z]+('[A-Za-z]+)?"): word => upper(word.text.first()) + lower(word.text.slice(1))
   it 
 }
 
-#box(
-  width: 100%,
-  outset: (x: 2cm, y: 1cm),
-  fill: darker,
-  grid(
-    columns: (1fr, 1fr),
-    image("banner.svg", width: 100%),
-    align(
-      horizon + right,
-      box(
-        inset: 8mm,
-        width: 60%,
-        fill: light,
-        radius: 3mm,
-        qr-code("https://backbone.snlx.net", background: light, color: darker),
+#let banner = context if target() == "html" {
+  html.div(class: "banner")[
+    #html.div(class: "banner-inner")[
+      #image("banner.svg")
+      #html.div(class: "download-link")[
+        #link("/app.apk")[
+          #image("android.svg")
+          Download
+        ]
+      ]
+    ]
+    #html.div(class: "banner-border")[
+      #image("zigzag.svg")
+    ]
+  ]
+} else {
+  box(
+    width: 100%,
+    outset: (x: 2cm, y: 1cm),
+    fill: darker,
+    grid(
+      columns: (1fr, 1fr),
+      image("banner.svg", width: 100%),
+      align(
+        horizon + right,
+        box(
+          inset: 8mm,
+          width: 60%,
+          fill: light,
+          radius: 3mm,
+          qr-code("https://backbone.snlx.net", background: light, color: darker),
+        )
       )
-    )
-  ),
-)
+    ),
+  )
 
-#align(center, image("zigzag.svg", width: 100% + 2cm))
+  align(center, image("zigzag.svg", width: 100% + 2cm))
+}
 
+#let doc(it) = context if target() == "html" { html.main(it) } else { it }
+#let side-by-side(a, b) = context if target() == "html" {
+  html.div(class: "side-by-side")[#a#b]
+} else {
+  grid(
+    columns: 2,
+    gutter: 1cm, 
+    a,
+    b,
+  )
+}
+
+#banner
+#doc[
 = The problem
 Let's say you need a good camera and a screen for a robot you're making.
 The traditional way is a raspberry pi (around 70 USD) with a CSI camera (\$25 for v3)
@@ -66,9 +101,7 @@ allow it access to the hardware, set it as the launcher and forget about.
 
 Instead of developing for Android, you get this JS API:
 
-#grid(
-  columns: 2,
-  gutter: 1cm, 
+#side-by-side(
   ```ts
   backbone.startup(
       url: string,
@@ -93,3 +126,4 @@ backbone.onmessage: (message: string, device: string) => void
 ```
 
 Perepherals can only `send` to central, so the device is optional for them.
+]
