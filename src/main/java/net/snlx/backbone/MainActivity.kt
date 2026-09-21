@@ -80,12 +80,14 @@ class MainActivity : Activity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (checkSelfPermission(Manifest.permission.BLUETOOTH_ADVERTISE) != PackageManager.PERMISSION_GRANTED ||
-                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+                checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
             ) {
                 requestPermissions(
                     arrayOf(
                         Manifest.permission.BLUETOOTH_ADVERTISE,
                         Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.BLUETOOTH_SCAN,
                         Manifest.permission.ACCESS_FINE_LOCATION,
                     ),
                     1001
@@ -194,13 +196,12 @@ class System(private val app: MainActivity) {
     fun blePeripheral(deviceName: String) {
         app.bleClient?.stop()
         app.bleServer?.stop()
-        app.bleServer = BleServer(app, deviceName, {msg -> onBleMessage(msg, null)})
+        app.bleServer = BleServer(app, deviceName, {msg -> onBleMessage(msg, "central")})
         app.bleServer?.start()
     }
 
     @JavascriptInterface
     fun send(message: String, deviceName: String?) {
-        Log.v("BACKBONE", "client wanna send")
         app.bleServer?.send(message)
 
         if (deviceName != null) {
@@ -208,9 +209,9 @@ class System(private val app: MainActivity) {
         }
     }
 
-    fun onBleMessage(message: String, device: String?) {
+    fun onBleMessage(message: String, device: String) {
         app.runOnUiThread {
-            val deviceJson = device?.let { org.json.JSONObject.quote(it) } ?: "undefined"
+            val deviceJson = org.json.JSONObject.quote(device)
             val messageJson = org.json.JSONObject.quote(message)
 
             app.webview.evaluateJavascript(
@@ -300,11 +301,13 @@ class BleClient(
     }
 
     fun start() {
+        Log.v("BACKBONE", "Requesting permissions")
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return
         }
+        Log.v("BACKBONE", "Starting central")
         adapter.name = "backbone"
         val settings = ScanSettings.Builder()
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
