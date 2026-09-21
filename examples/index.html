@@ -30,12 +30,11 @@
     </main>
 
     <script>
-      backbone.onBleMessage = (device, msg) => pretext.textContent += device + ": " + msg + "\n"
-      backbone.onBleMessage?.("none", "sanity check")
+      backbone.onmessage = (device, msg) => pretext.textContent += device + ": " + msg + "\n"
 
-      becentral.onclick = () => backbone.bleCentral(["per-1", "per-2", "cp-test"])
-      beperipheral.onclick = () => backbone.blePeripheral("per-1")
-      beperipheral2.onclick = () => backbone.blePeripheral("per-2")
+      becentral.onclick = () => backbone.central(["per-1", "per-2", "cp-test"])
+      beperipheral.onclick = () => backbone.peripheral("per-1")
+      beperipheral2.onclick = () => backbone.peripheral("per-2")
       sendhi.onclick = () => backbone.send("hi", "per-1")
       sendhi2.onclick = () => backbone.send("hi", "per-2")
 

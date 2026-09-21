@@ -53,7 +53,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
-const val DEFAULT_URL = "https://microphone-test.com"
+const val DEFAULT_URL = "http://localhost:8899"
 val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -235,7 +235,7 @@ class System(private val app: MainActivity) {
     }
 
     @JavascriptInterface
-    fun bleCentral(deviceNames: Array<String>) {
+    fun central(deviceNames: Array<String>) {
         app.bleServer?.stop()
         app.bleClient?.stop()
         app.bleClient = BleClient(app, deviceNames.toSet(), {dev, msg -> onBleMessage(msg, dev)})
@@ -243,7 +243,7 @@ class System(private val app: MainActivity) {
     }
 
     @JavascriptInterface
-    fun blePeripheral(deviceName: String) {
+    fun peripheral(deviceName: String) {
         app.bleClient?.stop()
         app.bleServer?.stop()
         app.bleServer = BleServer(app, deviceName, {msg -> onBleMessage(msg, "central")})
@@ -265,7 +265,7 @@ class System(private val app: MainActivity) {
             val messageJson = org.json.JSONObject.quote(message)
 
             app.webview.evaluateJavascript(
-                "backbone.onBleMessage?.($deviceJson, $messageJson)",
+                "backbone.onmessage?.($deviceJson, $messageJson)",
                 null
             )
         }
