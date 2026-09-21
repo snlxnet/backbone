@@ -71,10 +71,6 @@ class MainActivity : AppCompatActivity() {
         WebView.setWebContentsDebuggingEnabled(true)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.hide(WindowInsetsCompat.Type.systemBars())
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         onPermsGranted = {
             webview = WebView(this)
@@ -102,6 +98,21 @@ class MainActivity : AppCompatActivity() {
             }
 
             val pref = this.getPreferences(Context.MODE_PRIVATE)
+
+            val fullscreen = pref.getBoolean("fullscreen", false)
+            if (fullscreen) {
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                val controller = WindowInsetsControllerCompat(window, window.decorView)
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+
+            val shellCommand = pref.getString("shellCommand", "").orEmpty()
+            sh(shellCommand)
+
+            val delay = pref.getLong("delay", 0)
+            Thread.sleep(delay)
+
             val url = pref.getString("url", DEFAULT_URL).toString()
             webview.loadUrl(url)
         }
@@ -162,74 +173,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun serve(port: Int, handler: (input: BufferedReader, output: PrintWriter) -> Unit) {
-        Thread(Runnable {
-            val socket = ServerSocket(port)
-            while (true) {
-                val client = socket.accept()
-                val output = PrintWriter(client.getOutputStream(), true)
-                val input = BufferedReader(InputStreamReader(client.getInputStream()))
-                handler(input, output)
-                output.close()
-            }
-        }).start()
-    }
+    fun sh(command: String) {
+        if (command.isEmpty() || command.isBlank()) {
+            return
+        }
 
-    fun startApi() {
-        serve(2077, {input, output ->
-            val path = input.readLine().split(" ")[1].trim()
-
-            val headers = generateSequence { input.readLine() }
-                .takeWhile { it.isNotEmpty() }
-                .toList()
-            val contentLength = headers
-                .firstOrNull { it.startsWith("Content-Length:", ignoreCase = true) }
-                ?.substringAfter(":")
-                ?.trim()
-                ?.toIntOrNull() ?: 0
-
-            val bodyBuf = CharArray(contentLength)
-            input.read(bodyBuf)
-            val body = String(bodyBuf)
-
-            if (!body.isEmpty() && path == "/sh") {
-                intent = Intent()
-                intent.setClassName("com.termux", "com.termux.app.RunCommandService");
-                intent.setAction("com.termux.RUN_COMMAND");
-                intent.putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash");
-                intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", body));
-                intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
-                try {
-                    startService(intent)
-                    output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                    output.write("Started in the background")
-                } catch (_: SecurityException) {
-                    output.write("HTTP/1.1 403 Forbidden\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                    output.write("Forbidden by the OS")
-                }
-
-                output.flush()
-            } else if (path == "/reload") {
-                output.write("HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                output.write("Reloading")
-                runOnUiThread {
-                    webview.reload()
-                }
-            } else {
-                output.write("HTTP/1.1 404 Not Found\r\nAccess-Control-Allow-Origin: *\r\n\r\n")
-                output.write("Command not found" + path)
-            }
-        })
+        intent = Intent()
+        intent.setClassName("com.termux", "com.termux.app.RunCommandService");
+        intent.setAction("com.termux.RUN_COMMAND");
+        intent.putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash");
+        intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS", arrayOf("-c", command));
+        intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
+        try {
+            startService(intent)
+            Toast.makeText(this, "Termux started", 0).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(this, "Failed to start termux", 0).show()
+        }
     }
 }
 
 class System(private val app: MainActivity) {
     @JavascriptInterface
-    fun replaceApp(url: String) {
+    fun startup(url: String, fullscreen: Boolean, shellCommand: String, delay: Long) {
         val pref = app.getPreferences(Context.MODE_PRIVATE) ?: return
 
         with (pref.edit()) {
             putString("url", url)
+            putBoolean("fullscreen", fullscreen)
+            putString("shellCommand", shellCommand)
+            putLong("delay", delay)
             apply()
         }
     }
