@@ -53,7 +53,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 
-const val DEFAULT_URL = "http://192.168.50.174:8899/app"
 val UART_SERVICE_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_RX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
 val UART_TX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -113,8 +112,19 @@ class MainActivity : AppCompatActivity() {
             val delay = pref.getLong("delay", 0)
             Thread.sleep(delay)
 
-            val url = pref.getString("url", DEFAULT_URL).toString()
-            webview.loadUrl(url)
+            Thread {
+                val fallback = try {
+                    Socket("127.0.0.1", 2903).close()
+                    "http://127.0.0.1:2903/"
+                } catch (e: Exception) {
+                    Log.v("BACKBONE", e.toString())
+                    "https://backbone.snlx.net"
+                }
+                runOnUiThread {
+                    val url = pref.getString("url", fallback).toString()
+                    webview.loadUrl(url)
+                }
+            }.start()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
