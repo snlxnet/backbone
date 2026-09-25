@@ -21,7 +21,7 @@ jobs:
         uses: actions/configure-pages@v5
       - name: build
         run: |
-          typst compile site.typ --format=bundle --features=bundle,html
+          typst compile site.typ --format=bundle --features=bundle,html --font-path=.
       - name: upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

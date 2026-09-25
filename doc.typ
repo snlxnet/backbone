@@ -9,7 +9,7 @@
 
 // doc
 #set page(paper: "a4", margin: 1cm, fill: darkest)
-#set text(fill: dark, font: "JetBrainsMono NF", weight: "bold", size: 12pt)
+#set text(fill: dark, font: "JetBrains Mono", weight: "bold", size: 12pt)
 #show heading: set text(fill: light)
 #set raw(theme: "min.tmTheme")
 #show raw.where(block: false): set text(fill: light)
