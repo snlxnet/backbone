@@ -26,6 +26,10 @@ h2 {
   color: var(--light);
 }
 
+a, :not(pre)>code {
+  color: var(--light);
+}
+
 .download-link a {
   width: 100%;
   height: 100%;

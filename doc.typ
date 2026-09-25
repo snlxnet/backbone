@@ -12,6 +12,7 @@
 #set text(fill: dark, font: "JetBrainsMono NF", weight: "bold", size: 12pt)
 #show heading: set text(fill: light)
 #set raw(theme: "min.tmTheme")
+#show raw.where(block: false): set text(fill: light)
 #show raw.where(block: true): it => block(
   fill: darker,
   inset: 5mm,
@@ -112,9 +113,9 @@ Instead of developing for Android, you get this JS API:
   ```,
   [
   These are the app settings:
-  - the shell command runs in termux at startup. Set to `""` to disable
-  - the url is the link to your actual js app
-  - delay between running termux and loading the url
+  - `shell`: command runs in termux at startup.\ Default: `""`
+  - `url`: link to your actual js app.\ Default: `localhost:2903 || backbone.snlx.net/app`
+  - `delay` between `shell` and `url`.\ Defuault: `0`
   ],
 )
 
@@ -125,5 +126,9 @@ backbone.send(message: string, device?: string) // send a message over BLE
 backbone.onmessage: (message: string, device: string) => void
 ```
 
-Perepherals can only `send` to central, so the device is optional for them.
+Peripherals can only `send` to central, so the device is optional for them.
+
+#context if target() == "html" [
+    This doc also has a #link("/doc.pdf")[print version].
+]
 ]

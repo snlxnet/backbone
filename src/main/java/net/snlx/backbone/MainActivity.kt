@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
                     "http://127.0.0.1:2903/"
                 } catch (e: Exception) {
                     Log.v("BACKBONE", e.toString())
-                    "https://backbone.snlx.net"
+                    "https://backbone.snlx.net/app"
                 }
                 runOnUiThread {
                     val url = pref.getString("url", fallback).toString()
