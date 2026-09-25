@@ -35,7 +35,7 @@
     #html.div(class: "banner-inner")[
       #image("banner.svg")
       #html.div(class: "download-link")[
-        #link("/app.apk")[
+        #link("https://github.com/snlxnet/backbone/releases/download/v0.1.0/backbone.apk")[
           #image("android.svg")
           Download
         ]
