@@ -1,0 +1,1 @@
+data:text/html;utf-8,<button id="btn">HI</button><pre id="out"></pre><script>backbone.peripheral("OREO");btn.onclick = () => {backbone.send("HI")}; backbone.onmessage = (d,_) => out.textContent += d</script>
