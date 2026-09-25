@@ -31,6 +31,14 @@
 
         pkgs.tinymist
         pkgs.typst
+
+        (pkgs.writeShellScriptBin "run" ''
+          gradle installDebug && adb shell am start -n net.snlx.backbone/.MainActivity
+        '')
+
+        (pkgs.writeShellScriptBin "site" ''
+          typst watch site.typ --format=bundle --features=bundle,html --font-path=.
+        '')
       ];
 
       shellHook = ''
