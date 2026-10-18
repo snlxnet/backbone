@@ -8,17 +8,17 @@
 #let black = rgb("#000")
 
 // doc
-#set page(paper: "a4", margin: 1cm, fill: darkest)
-#set text(fill: dark, font: "JetBrains Mono", weight: "bold", size: 12pt)
-#show heading: set text(fill: light)
+#import "main.typ": theme
+#show: theme("/backbone", "banner.svg", "paleo", 09, spikes: true, segment: 6)
 #set raw(theme: "min.tmTheme")
-#show raw.where(block: false): set text(fill: light)
-#show raw.where(block: true): it => block(
-  fill: darker,
-  inset: 5mm,
-  radius: 3mm,
-  it
-)
+
+#html.style(```css
+.side-by-side {
+  display: flex;
+  gap: 1em;
+  overflow-x: auto;
+}
+```.text)
 
 #context if target() == "html" {
   html.link(rel: "stylesheet", href: "doc.css")
@@ -30,48 +30,12 @@
   it 
 }
 
-#let banner = context if target() == "html" {
-  html.div(class: "banner")[
-    #html.div(class: "banner-inner")[
-      #image("banner.svg")
-      #html.div(class: "download-link")[
-        #link("https://github.com/snlxnet/backbone/releases/download/v0.1.0/backbone.apk")[
-          #image("android.svg")
-          Download
-        ]
-      ]
-    ]
-    #html.div(class: "banner-border")[
-      #image("zigzag.svg")
-    ]
-  ]
-} else {
-  box(
-    width: 100%,
-    outset: (x: 2cm, y: 1cm),
-    fill: darker,
-    grid(
-      columns: (1fr, 1fr),
-      image("banner.svg", width: 100%),
-      align(
-        horizon + right,
-        box(
-          inset: 8mm,
-          width: 60%,
-          fill: light,
-          radius: 3mm,
-          qr-code("https://backbone.snlx.net", background: light, color: darker),
-        )
-      )
-    ),
-  )
-
-  align(center, image("zigzag.svg", width: 100% + 2cm))
-}
-
 #let doc(it) = context if target() == "html" { html.main(it) } else { it }
 #let side-by-side(a, b) = context if target() == "html" {
-  html.div(class: "side-by-side")[#a#b]
+  html.div(class: "side-by-side")[
+    #html.div(a)
+    #html.div(b)
+  ]
 } else {
   grid(
     columns: 2,
@@ -81,7 +45,6 @@
   )
 }
 
-#banner
 #doc[
 = The problem
 Let's say you need a good camera and a screen for a robot you're making.
