@@ -19,6 +19,8 @@
   it 
 }
 
+The app is currently in early development, here's #link("https://github.com/snlxnet/backbone/releases/download/v0.1.0/backbone.apk")[the .apk]
+
 = The problem
 Let's say you need a good camera and a screen for a robot you're making.
 The traditional way is a raspberry pi (around 70 USD) with a CSI camera (\$25 for v3)
@@ -46,7 +48,6 @@ backbone.startup(
     shellCommand, // command runs in termux at startup. Default: ""
     delay,        // between shell and url. Defuault: 0
 )
-
 backbone.central(deviceNames: string[]) // run as BLE central
 backbone.peripheral(deviceName: string) // run as BLE peripheral
 backbone.send(message: string, device?: string) // send a message over BLE
