@@ -9,7 +9,7 @@
 
 // doc
 #import "main.typ": theme
-#show: theme("/backbone", "banner.svg", "paleo", 09, spikes: true, segment: 8)
+#show: theme("/backbone", "/ru/backbone", "banner.svg", "paleo", 07, spikes: true, segment: 8)
 #set raw(theme: "min.tmTheme")
 #show raw: set text(11pt)
 

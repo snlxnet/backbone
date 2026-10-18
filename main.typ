@@ -2,6 +2,25 @@
 #import "squiggles.typ": squiggles
 #import "qr.typ": qr
 
+#let load-sketch = ```js
+(async () => {
+  const old = document.querySelector(`[data-typst-label]`).firstElementChild
+  const width = old.width.baseVal.value
+  const height = old.height.baseVal.value
+  const container = old.parentElement
+  const src = container.dataset.typstLabel
+
+  const text = await fetch("/" + src).then(r => r.text())
+  if (!text) {
+    return
+  }
+  container.innerHTML = text
+  const svg = container.querySelector("svg")
+  svg.setAttribute("width", width)
+  svg.setAttribute("height", height)
+})()
+```
+
 #let base-css = ```css
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 body {
@@ -59,9 +78,11 @@ pre {
 
 #let theme(
   path,
+  ru-path,
   card,
   colorscheme-name,
   seed,
+  ru-footer: false,
   ..args,
 ) = (doc) => context {
   let colorscheme = if target() == "html" {
@@ -76,15 +97,33 @@ pre {
     outset: 10mm,
     grid(
       columns: (1fr, auto),
-      box(image(card, height: 6.2cm)),
+      [#box(image(card, height: 6.2cm))#label(card)],
       [#set text(size: 10pt)
-      #qr(path, background: colorscheme.qrbg, color: colorscheme.qrfg)],
+      #qr(path, ru-path, background: colorscheme.qrbg, color: colorscheme.qrfg)],
     )
   )
   let footer(it) = if target() == "html" {
     html.footer(it)
   } else {
     box(fill: colorscheme.header, width: 100%, outset: 10mm, it)
+  }
+  let wrapper(it) = if target() == "html" {
+    html.html({
+      html.head({
+        html.meta(charset: "utf-8")
+        html.meta(name: "viewport", content: "width=device-width, initial-scale=1")
+        html.elem("meta", attrs: (property: "og:image", content: "https://backbone.snlx.net/" + card.replace(".svg", ".png")))
+        html.title(document.title)
+        if document.description != none {
+          html.meta(name: "description", content: document.description.text)
+        }
+        html.style(base-css.text)
+        html.style(colors.css.at(colorscheme-name))
+      })
+      html.body(it)
+    })
+  } else {
+    it
   }
 
   set text(font: "JetBrains Mono", fill: colorscheme.text)
@@ -93,44 +132,51 @@ pre {
   show raw.where(block: true): it => block(inset: 1em, fill: colorscheme.header, radius: 3mm, width: 100%, it)
   set page(margin: 10mm, fill: colorscheme.page)
   
-  if target() == "html" {
-    html.style(base-css.text)
-    html.style(colors.css.at(colorscheme-name))
-    html.header(html.frame(box(width: 180mm, header)))
-  } else {
-    header
-  }
-  squiggles(
-    seed,
-    fill: colorscheme.header,
-    stroke: 0.3mm + colorscheme.border,
-    up: 3,
-    ..args,
-  )
-  show link: underline
-  show link: set text(fill: colorscheme.accent)
-  if target() == "html" {
-    html.main(doc)
-  } else {
-    doc
-  }
-  set align(bottom + center)
-  squiggles(
-    seed + 1,
-    fill: colorscheme.header,
-    stroke: 0.3mm + colorscheme.border,
-    down: -10,
-    ..args,
-  )
-  footer[
-    \@snlxnet
-    | #link("https://snlx.net")[home]
-    | #link("https://github.com/snlxnet")[github]
-    | #link(path + ".pdf")[pdf]
-  ]
+  wrapper({
+    if target() == "html" {
+      html.header(html.frame(box(width: 180mm, header)))
+    } else {
+      header
+    }
+    squiggles(
+      seed,
+      fill: colorscheme.header,
+      stroke: 0.3mm + colorscheme.border,
+      up: 3,
+      ..args,
+    )
+    show link: underline
+    show link: set text(fill: colorscheme.accent)
+    if target() == "html" {
+      html.script(load-sketch.text)
+      html.main(doc)
+    } else {
+      doc
+    }
+    set align(bottom + center)
+    squiggles(
+      seed + 1,
+      fill: colorscheme.header,
+      stroke: 0.3mm + colorscheme.border,
+      down: -10,
+      ..args,
+    )
+    footer[
+      #if ru-footer [
+        alexanderthestudent\@yandex.ru
+        | #link("https://snlx.net/ru")[Главная]
+        | #link(ru-path + ".pdf")[PDF]
+      ] else [
+        \@snlxnet
+        | #link("https://snlx.net")[home]
+        | #link("https://github.com/snlxnet")[github]
+        | #link(path + ".pdf")[pdf]
+      ]
+    ]
+  })
 }
 
-#show: theme("/site", "card.svg", "dark", 0)
+#show: theme("/site", "/site", "card.svg", "dark", 0)
 
 = Heading
 
