@@ -51,6 +51,9 @@ h1, h2, h3, h4, a, strong {
 }
 pre {
   overflow-x: auto;
+  padding: 1em;
+  background: var(--header);
+  border-radius: 1em;
 }
 ```
 
@@ -87,6 +90,7 @@ pre {
   set text(font: "JetBrains Mono", fill: colorscheme.text)
   show heading: set text(fill: colorscheme.deep)
   show strong: set text(fill: colorscheme.accent)
+  show raw.where(block: true): it => block(inset: 1em, fill: colorscheme.header, radius: 3mm, width: 100%, it)
   set page(margin: 10mm, fill: colorscheme.page)
   
   if target() == "html" {
