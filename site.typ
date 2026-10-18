@@ -3,7 +3,7 @@
     width: 600pt,
     height: 315pt,
     background: image(file, height: 100%),
-    fill: rgb("#2e2d39"),
+    fill: rgb("#51403b"),
   )
 ]}
 
