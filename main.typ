@@ -114,6 +114,7 @@ pre {
         html.meta(name: "viewport", content: "width=device-width, initial-scale=1")
         html.elem("meta", attrs: (property: "og:image", content: "https://backbone.snlx.net/" + card.replace(".svg", ".png")))
         html.title(document.title)
+        html.link(rel: "icon", type: "image/svg+xml", href: "/favicon.svg")
         if document.description != none {
           html.meta(name: "description", content: document.description.text)
         }

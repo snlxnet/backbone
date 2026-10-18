@@ -17,4 +17,5 @@
   asset("banner.svg", read("banner.svg"))
   png("banner.svg")
   asset("app.html", read("app.html"))
+  asset("favicon.svg", read("favicon.svg"))
 }
